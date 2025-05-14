@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telefon Sensör Monitörü</title>
+    <title>Gelişmiş Telefon Sensör Monitörü</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.7/gauge.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -89,6 +90,13 @@
             margin-top: 15px;
         }
         
+        .gauge-container {
+            width: 100%;
+            height: 200px;
+            margin: 10px auto;
+            text-align: center;
+        }
+        
         .button-container {
             display: flex;
             gap: 10px;
@@ -109,6 +117,14 @@
             background-color: #2980b9;
         }
         
+        button.csv-button {
+            background-color: #27ae60;
+        }
+        
+        button.csv-button:hover {
+            background-color: #219653;
+        }
+        
         .permission-warning {
             background-color: #fff3cd;
             border: 1px solid #ffeeba;
@@ -116,6 +132,47 @@
             padding: 15px;
             border-radius: 8px;
             margin-bottom: 20px;
+        }
+        
+        .time-range-selector {
+            display: flex;
+            margin: 10px 0;
+            border-radius: 5px;
+            overflow: hidden;
+            background-color: #ecf0f1;
+            width: fit-content;
+        }
+        
+        .time-range-button {
+            background-color: transparent;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            color: #34495e;
+            font-weight: 500;
+        }
+        
+        .time-range-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .sensor-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .update-interval {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .update-interval label {
+            font-weight: 500;
         }
         
         footer {
@@ -126,6 +183,18 @@
             color: #95a5a6;
         }
         
+        .update-timer {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #ecf0f1;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -134,13 +203,18 @@
             h1 {
                 font-size: 20px;
             }
+            
+            .time-range-button {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Telefon Sensör Monitörü</h1>
+            <h1>Gelişmiş Telefon Sensör Monitörü</h1>
         </header>
         
         <div class="permission-warning" id="permissionWarning">
@@ -150,6 +224,67 @@
         <div class="button-container">
             <button id="startButton">Başlat</button>
             <button id="stopButton" disabled>Durdur</button>
+            <span id="updateTimerContainer" style="display: none;">
+                Güncelleme: <span id="updateTimer" class="update-timer">10</span>
+            </span>
+        </div>
+        
+        <div class="update-interval">
+            <label for="updateInterval">Güncelleme Aralığı:</label>
+            <select id="updateInterval">
+                <option value="1">1 saniye</option>
+                <option value="5">5 saniye</option>
+                <option value="10" selected>10 saniye</option>
+                <option value="30">30 saniye</option>
+                <option value="60">1 dakika</option>
+            </select>
+        </div>
+        
+        <!-- Hız Göstergesi (Speedometer) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Hız Göstergesi (GPS)</div>
+                <div class="sensor-status status-waiting" id="speedStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Telefonunuzun mevcut hızını gösterir (km/saat)</div>
+            <div class="gauge-container">
+                <canvas id="speedGauge"></canvas>
+            </div>
+            <div class="sensor-value" id="speedValue">Hız: 0 km/s</div>
+            <div class="sensor-actions">
+                <div class="time-range-selector" id="speedTimeSelector">
+                    <button class="time-range-button active" data-range="minute">1 dk</button>
+                    <button class="time-range-button" data-range="hour">1 saat</button>
+                    <button class="time-range-button" data-range="4hour">4 saat</button>
+                    <button class="time-range-button" data-range="day">24 saat</button>
+                </div>
+                <button class="csv-button" data-sensor="speed">Excel'e Aktar</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="speedChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Barometrik Basınç (Barometer) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Barometrik Basınç (Barometre)</div>
+                <div class="sensor-status status-waiting" id="pressureStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Atmosfer basıncını ölçer (hPa)</div>
+            <div class="sensor-value" id="pressureValue">Basınç: 0 hPa</div>
+            <div class="sensor-actions">
+                <div class="time-range-selector" id="pressureTimeSelector">
+                    <button class="time-range-button active" data-range="minute">1 dk</button>
+                    <button class="time-range-button" data-range="hour">1 saat</button>
+                    <button class="time-range-button" data-range="4hour">4 saat</button>
+                    <button class="time-range-button" data-range="day">24 saat</button>
+                </div>
+                <button class="csv-button" data-sensor="pressure">Excel'e Aktar</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="pressureChart"></canvas>
+            </div>
         </div>
         
         <!-- Accelerometer (İvmeölçer) -->
@@ -160,6 +295,15 @@
             </div>
             <div class="sensor-description">Telefonun x, y ve z eksenlerindeki hareketini ölçer</div>
             <div class="sensor-value" id="accelerometerValues">X: 0 m/s², Y: 0 m/s², Z: 0 m/s²</div>
+            <div class="sensor-actions">
+                <div class="time-range-selector" id="accelerometerTimeSelector">
+                    <button class="time-range-button active" data-range="minute">1 dk</button>
+                    <button class="time-range-button" data-range="hour">1 saat</button>
+                    <button class="time-range-button" data-range="4hour">4 saat</button>
+                    <button class="time-range-button" data-range="day">24 saat</button>
+                </div>
+                <button class="csv-button" data-sensor="accelerometer">Excel'e Aktar</button>
+            </div>
             <div class="chart-container">
                 <canvas id="accelerometerChart"></canvas>
             </div>
@@ -173,6 +317,15 @@
             </div>
             <div class="sensor-description">Telefonun dönüş hızını eksenler bazında ölçer</div>
             <div class="sensor-value" id="gyroscopeValues">X: 0 rad/s, Y: 0 rad/s, Z: 0 rad/s</div>
+            <div class="sensor-actions">
+                <div class="time-range-selector" id="gyroscopeTimeSelector">
+                    <button class="time-range-button active" data-range="minute">1 dk</button>
+                    <button class="time-range-button" data-range="hour">1 saat</button>
+                    <button class="time-range-button" data-range="4hour">4 saat</button>
+                    <button class="time-range-button" data-range="day">24 saat</button>
+                </div>
+                <button class="csv-button" data-sensor="gyroscope">Excel'e Aktar</button>
+            </div>
             <div class="chart-container">
                 <canvas id="gyroscopeChart"></canvas>
             </div>
@@ -186,21 +339,17 @@
             </div>
             <div class="sensor-description">Telefonun alfa, beta ve gama açılarındaki konumunu gösterir</div>
             <div class="sensor-value" id="orientationValues">Alfa: 0°, Beta: 0°, Gama: 0°</div>
+            <div class="sensor-actions">
+                <div class="time-range-selector" id="orientationTimeSelector">
+                    <button class="time-range-button active" data-range="minute">1 dk</button>
+                    <button class="time-range-button" data-range="hour">1 saat</button>
+                    <button class="time-range-button" data-range="4hour">4 saat</button>
+                    <button class="time-range-button" data-range="day">24 saat</button>
+                </div>
+                <button class="csv-button" data-sensor="orientation">Excel'e Aktar</button>
+            </div>
             <div class="chart-container">
                 <canvas id="orientationChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Proximity (Yakınlık) -->
-        <div class="sensor-info">
-            <div class="sensor-title">
-                <div>Işık Sensörü</div>
-                <div class="sensor-status status-waiting" id="lightStatus">Bekliyor</div>
-            </div>
-            <div class="sensor-description">Ortam ışık seviyesini ölçer (Desteklenen tarayıcılarda)</div>
-            <div class="sensor-value" id="lightValues">Işık seviyesi: 0 lux</div>
-            <div class="chart-container">
-                <canvas id="lightChart"></canvas>
             </div>
         </div>
         
@@ -212,68 +361,191 @@
             </div>
             <div class="sensor-description">Telefonun coğrafi konumunu gösterir</div>
             <div class="sensor-value" id="locationValues">Enlem: 0, Boylam: 0</div>
+            <div class="sensor-actions">
+                <button class="csv-button" data-sensor="location">Excel'e Aktar</button>
+            </div>
         </div>
         
         <footer>
             <p>Not: Tüm sensörler tüm tarayıcılarda veya cihazlarda desteklenmeyebilir. Chrome veya Firefox'un güncel sürümleri önerilir.</p>
         </footer>
     </div>
-
-    <script>
+<script>
         // DOM elementleri
         const permissionWarning = document.getElementById('permissionWarning');
         const startButton = document.getElementById('startButton');
         const stopButton = document.getElementById('stopButton');
+        const updateIntervalSelect = document.getElementById('updateInterval');
+        const updateTimerContainer = document.getElementById('updateTimerContainer');
+        const updateTimerElement = document.getElementById('updateTimer');
         
         // Sensör durumları
         const accelerometerStatus = document.getElementById('accelerometerStatus');
         const gyroscopeStatus = document.getElementById('gyroscopeStatus');
         const orientationStatus = document.getElementById('orientationStatus');
-        const lightStatus = document.getElementById('lightStatus');
+        const pressureStatus = document.getElementById('pressureStatus');
+        const speedStatus = document.getElementById('speedStatus');
         const locationStatus = document.getElementById('locationStatus');
         
         // Sensör değerleri
         const accelerometerValues = document.getElementById('accelerometerValues');
         const gyroscopeValues = document.getElementById('gyroscopeValues');
         const orientationValues = document.getElementById('orientationValues');
-        const lightValues = document.getElementById('lightValues');
+        const pressureValue = document.getElementById('pressureValue');
+        const speedValue = document.getElementById('speedValue');
         const locationValues = document.getElementById('locationValues');
         
         // Grafikler için gerekli değişkenler
         let accelerometerChart;
         let gyroscopeChart;
         let orientationChart;
-        let lightChart;
+        let pressureChart;
+        let speedChart;
+        let speedGauge;
         
         // Sensör nesneleri
         let accelerometer = null;
         let gyroscope = null;
-        let ambientLightSensor = null;
+        let barometer = null;
         let locationWatchId = null;
         
-        // Veri noktalarının sayısı
-        const MAX_DATA_POINTS = 50;
+        // Güncelleme aralığı ve zamanlayıcı değişkenleri
+        let updateInterval = 10; // varsayılan 10 saniye
+        let updateTimer = updateInterval;
+        let updateTimerId = null;
         
-        // Zaman etiketleri ve veri dizileri
-        const timeLabels = Array(MAX_DATA_POINTS).fill('');
+        // Veri saklama değişkenleri
+        const sensorData = {
+            accelerometer: {
+                minute: { x: [], y: [], z: [], timestamps: [] },
+                hour: { x: [], y: [], z: [], timestamps: [] },
+                '4hour': { x: [], y: [], z: [], timestamps: [] },
+                day: { x: [], y: [], z: [], timestamps: [] }
+            },
+            gyroscope: {
+                minute: { x: [], y: [], z: [], timestamps: [] },
+                hour: { x: [], y: [], z: [], timestamps: [] },
+                '4hour': { x: [], y: [], z: [], timestamps: [] },
+                day: { x: [], y: [], z: [], timestamps: [] }
+            },
+            orientation: {
+                minute: { alpha: [], beta: [], gamma: [], timestamps: [] },
+                hour: { alpha: [], beta: [], gamma: [], timestamps: [] },
+                '4hour': { alpha: [], beta: [], gamma: [], timestamps: [] },
+                day: { alpha: [], beta: [], gamma: [], timestamps: [] }
+            },
+            pressure: {
+                minute: { value: [], timestamps: [] },
+                hour: { value: [], timestamps: [] },
+                '4hour': { value: [], timestamps: [] },
+                day: { value: [], timestamps: [] }
+            },
+            speed: {
+                minute: { value: [], timestamps: [] },
+                hour: { value: [], timestamps: [] },
+                '4hour': { value: [], timestamps: [] },
+                day: { value: [], timestamps: [] }
+            },
+            location: {
+                latitude: [],
+                longitude: [],
+                timestamps: []
+            }
+        };
         
-        // Accelerometer veri dizileri
-        const accXData = Array(MAX_DATA_POINTS).fill(0);
-        const accYData = Array(MAX_DATA_POINTS).fill(0);
-        const accZData = Array(MAX_DATA_POINTS).fill(0);
+        // Görüntüleme modu (dakika, saat, 4 saat, gün)
+        const activeTimeRanges = {
+            accelerometer: 'minute',
+            gyroscope: 'minute',
+            orientation: 'minute',
+            pressure: 'minute',
+            speed: 'minute'
+        };
         
-        // Gyroscope veri dizileri
-        const gyroXData = Array(MAX_DATA_POINTS).fill(0);
-        const gyroYData = Array(MAX_DATA_POINTS).fill(0);
-        const gyroZData = Array(MAX_DATA_POINTS).fill(0);
+        // Gerçek zamanlı sensör değerleri
+        const currentValues = {
+            accelerometer: { x: 0, y: 0, z: 0 },
+            gyroscope: { x: 0, y: 0, z: 0 },
+            orientation: { alpha: 0, beta: 0, gamma: 0 },
+            pressure: 0,
+            speed: 0,
+            location: { latitude: 0, longitude: 0 }
+        };
         
-        // Orientation veri dizileri
-        const alphaData = Array(MAX_DATA_POINTS).fill(0);
-        const betaData = Array(MAX_DATA_POINTS).fill(0);
-        const gammaData = Array(MAX_DATA_POINTS).fill(0);
+        // Güncelleme aralığını ayarla
+        updateIntervalSelect.addEventListener('change', () => {
+            updateInterval = parseInt(updateIntervalSelect.value, 10);
+            updateTimer = updateInterval;
+            updateTimerElement.textContent = updateTimer;
+        });
         
-        // Light veri dizisi
-        const lightData = Array(MAX_DATA_POINTS).fill(0);
+        // Zaman aralığı butonlarını ayarla
+        document.querySelectorAll('.time-range-selector').forEach(selector => {
+            const sensorType = selector.id.replace('TimeSelector', '');
+            
+            selector.querySelectorAll('.time-range-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    // Aktif düğmeyi güncelle
+                    selector.querySelectorAll('.time-range-button').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    button.classList.add('active');
+                    
+                    // Aktif zaman aralığını güncelle
+                    activeTimeRanges[sensorType] = button.dataset.range;
+                    
+                    // Grafiği güncelle
+                    updateChart(sensorType);
+                });
+            });
+        });
+        
+        // CSV dışa aktarma butonlarını ayarla
+        document.querySelectorAll('.csv-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const sensorType = button.dataset.sensor;
+                exportToCSV(sensorType);
+            });
+        });
+        
+        // Hız göstergesini başlat
+        function initSpeedGauge() {
+            const opts = {
+                angle: 0,
+                lineWidth: 0.3,
+                radiusScale: 1,
+                pointer: {
+                    length: 0.6,
+                    strokeWidth: 0.035,
+                    color: '#2c3e50'
+                },
+                limitMax: false,
+                limitMin: false,
+                colorStart: '#6FADCF',
+                colorStop: '#8FC0DA',
+                strokeColor: '#E0E0E0',
+                generateGradient: true,
+                highDpiSupport: true,
+                staticLabels: {
+                    font: "10px sans-serif",
+                    labels: [0, 20, 40, 60, 80, 100, 120, 140, 160],
+                    color: "#000000",
+                    fractionDigits: 0
+                },
+                staticZones: [
+                    {strokeStyle: "#30B32D", min: 0, max: 50},
+                    {strokeStyle: "#FFDD00", min: 50, max: 100},
+                    {strokeStyle: "#F03E3E", min: 100, max: 160}
+                ],
+            };
+            
+            const target = document.getElementById('speedGauge');
+            speedGauge = new Gauge(target).setOptions(opts);
+            speedGauge.maxValue = 160;
+            speedGauge.setMinValue(0);
+            speedGauge.animationSpeed = 32;
+            speedGauge.set(0);
+        }
         
         // Grafikleri başlat
         function initCharts() {
@@ -282,25 +554,25 @@
             accelerometerChart = new Chart(accCtx, {
                 type: 'line',
                 data: {
-                    labels: timeLabels,
+                    labels: [],
                     datasets: [
                         {
                             label: 'X',
-                            data: accXData,
+                            data: [],
                             borderColor: 'rgb(255, 99, 132)',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Y',
-                            data: accYData,
+                            data: [],
                             borderColor: 'rgb(54, 162, 235)',
                             backgroundColor: 'rgba(54, 162, 235, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Z',
-                            data: accZData,
+                            data: [],
                             borderColor: 'rgb(75, 192, 192)',
                             backgroundColor: 'rgba(75, 192, 192, 0.1)',
                             tension: 0.3
@@ -326,25 +598,25 @@
             gyroscopeChart = new Chart(gyroCtx, {
                 type: 'line',
                 data: {
-                    labels: timeLabels,
+                    labels: [],
                     datasets: [
                         {
                             label: 'X',
-                            data: gyroXData,
+                            data: [],
                             borderColor: 'rgb(255, 159, 64)',
                             backgroundColor: 'rgba(255, 159, 64, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Y',
-                            data: gyroYData,
+                            data: [],
                             borderColor: 'rgb(153, 102, 255)',
                             backgroundColor: 'rgba(153, 102, 255, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Z',
-                            data: gyroZData,
+                            data: [],
                             borderColor: 'rgb(255, 205, 86)',
                             backgroundColor: 'rgba(255, 205, 86, 0.1)',
                             tension: 0.3
@@ -370,25 +642,25 @@
             orientationChart = new Chart(orientCtx, {
                 type: 'line',
                 data: {
-                    labels: timeLabels,
+                    labels: [],
                     datasets: [
                         {
                             label: 'Alfa',
-                            data: alphaData,
+                            data: [],
                             borderColor: 'rgb(201, 203, 207)',
                             backgroundColor: 'rgba(201, 203, 207, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Beta',
-                            data: betaData,
+                            data: [],
                             borderColor: 'rgb(255, 99, 132)',
                             backgroundColor: 'rgba(255, 99, 132, 0.1)',
                             tension: 0.3
                         },
                         {
                             label: 'Gama',
-                            data: gammaData,
+                            data: [],
                             borderColor: 'rgb(75, 192, 192)',
                             backgroundColor: 'rgba(75, 192, 192, 0.1)',
                             tension: 0.3
@@ -409,18 +681,48 @@
                 }
             });
             
-            // Light grafiği
-            const lightCtx = document.getElementById('lightChart').getContext('2d');
-            lightChart = new Chart(lightCtx, {
+            // Barometrik basınç grafiği
+            const pressureCtx = document.getElementById('pressureChart').getContext('2d');
+            pressureChart = new Chart(pressureCtx, {
                 type: 'line',
                 data: {
-                    labels: timeLabels,
+                    labels: [],
                     datasets: [
                         {
-                            label: 'Işık',
-                            data: lightData,
-                            borderColor: 'rgb(255, 205, 86)',
-                            backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                            label: 'Basınç (hPa)',
+                            data: [],
+                            borderColor: 'rgb(153, 102, 255)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+            
+            // Hız grafiği
+            const speedCtx = document.getElementById('speedChart').getContext('2d');
+            speedChart = new Chart(speedCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Hız (km/s)',
+                            data: [],
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.1)',
                             tension: 0.3
                         }
                     ]
@@ -438,31 +740,395 @@
                     }
                 }
             });
+            
+            // Hız göstergesini başlat
+            initSpeedGauge();
         }
         
-        // Veri noktası ekle ve gerçek zamanlı grafiği güncelle
-        function addDataPoint(chart, dataArrays, newValues) {
-            // Yeni zaman etiketi ekle
+        // Grafik güncelleme fonksiyonu
+        function updateChart(sensorType) {
+            const range = activeTimeRanges[sensorType];
+            const data = sensorData[sensorType][range];
+            
+            let chart;
+            switch (sensorType) {
+                case 'accelerometer':
+                    chart = accelerometerChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[0].data = data.x;
+                    chart.data.datasets[1].data = data.y;
+                    chart.data.datasets[2].data = data.z;
+                    break;
+                case 'gyroscope':
+                    chart = gyroscopeChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[0].data = data.x;
+                    chart.data.datasets[1].data = data.y;
+                    chart.data.datasets[2].data = data.z;
+                    break;
+                case 'orientation':
+                    chart = orientationChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[0].data = data.alpha;
+                    chart.data.datasets[1].data = data.beta;
+                    chart.data.datasets[2].data = data.gamma;
+                    break;
+                case 'pressure':
+                    chart = pressureChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[
+case 'pressure':
+                    chart = pressureChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[0].data = data.value;
+                    break;
+                case 'speed':
+                    chart = speedChart;
+                    chart.data.labels = data.timestamps;
+                    chart.data.datasets[0].data = data.value;
+                    break;
+            }
+            
+            chart.update();
+        }
+        
+        // Tüm grafikleri güncelle
+        function updateAllCharts() {
+            updateChart('accelerometer');
+            updateChart('gyroscope');
+            updateChart('orientation');
+            updateChart('pressure');
+            updateChart('speed');
+        }
+        
+        // Veri ekleme fonksiyonu - belirli bir zaman aralığı için
+        function addDataToTimeRange(sensorType, range, newData) {
+            const data = sensorData[sensorType][range];
             const now = new Date();
             const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
-                           now.getMinutes().toString().padStart(2, '0') + ':' + 
-                           now.getSeconds().toString().padStart(2, '0');
+                               now.getMinutes().toString().padStart(2, '0') + ':' + 
+                               now.getSeconds().toString().padStart(2, '0');
             
-            timeLabels.push(timeString);
-            if (timeLabels.length > MAX_DATA_POINTS) {
-                timeLabels.shift();
+            data.timestamps.push(timeString);
+            
+            // Her sensör türüne göre farklı veri ekleme
+            switch (sensorType) {
+                case 'accelerometer':
+                    data.x.push(newData.x);
+                    data.y.push(newData.y);
+                    data.z.push(newData.z);
+                    
+                    // Dakikalık veriler için 60 veri noktası limitini aşma
+                    if (range === 'minute' && data.timestamps.length > 60) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    // Saatlik veriler için 360 veri noktası limitini aşma
+                    if (range === 'hour' && data.timestamps.length > 360) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    // 4 saatlik veriler için 1440 veri noktası limitini aşma
+                    if (range === '4hour' && data.timestamps.length > 1440) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    // Günlük veriler için 8640 veri noktası limitini aşma
+                    if (range === 'day' && data.timestamps.length > 8640) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    break;
+                    
+                case 'gyroscope':
+                    data.x.push(newData.x);
+                    data.y.push(newData.y);
+                    data.z.push(newData.z);
+                    
+                    // Veri limiti kontrolü
+                    if (range === 'minute' && data.timestamps.length > 60) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    if (range === 'hour' && data.timestamps.length > 360) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    if (range === '4hour' && data.timestamps.length > 1440) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    
+                    if (range === 'day' && data.timestamps.length > 8640) {
+                        data.timestamps.shift();
+                        data.x.shift();
+                        data.y.shift();
+                        data.z.shift();
+                    }
+                    break;
+                    
+                case 'orientation':
+                    data.alpha.push(newData.alpha);
+                    data.beta.push(newData.beta);
+                    data.gamma.push(newData.gamma);
+                    
+                    // Veri limiti kontrolü
+                    if (range === 'minute' && data.timestamps.length > 60) {
+                        data.timestamps.shift();
+                        data.alpha.shift();
+                        data.beta.shift();
+                        data.gamma.shift();
+                    }
+                    
+                    if (range === 'hour' && data.timestamps.length > 360) {
+                        data.timestamps.shift();
+                        data.alpha.shift();
+                        data.beta.shift();
+                        data.gamma.shift();
+                    }
+                    
+                    if (range === '4hour' && data.timestamps.length > 1440) {
+                        data.timestamps.shift();
+                        data.alpha.shift();
+                        data.beta.shift();
+                        data.gamma.shift();
+                    }
+                    
+                    if (range === 'day' && data.timestamps.length > 8640) {
+                        data.timestamps.shift();
+                        data.alpha.shift();
+                        data.beta.shift();
+                        data.gamma.shift();
+                    }
+                    break;
+                    
+                case 'pressure':
+                case 'speed':
+                    data.value.push(newData);
+                    
+                    // Veri limiti kontrolü
+                    if (range === 'minute' && data.timestamps.length > 60) {
+                        data.timestamps.shift();
+                        data.value.shift();
+                    }
+                    
+                    if (range === 'hour' && data.timestamps.length > 360) {
+                        data.timestamps.shift();
+                        data.value.shift();
+                    }
+                    
+                    if (range === '4hour' && data.timestamps.length > 1440) {
+                        data.timestamps.shift();
+                        data.value.shift();
+                    }
+                    
+                    if (range === 'day' && data.timestamps.length > 8640) {
+                        data.timestamps.shift();
+                        data.value.shift();
+                    }
+                    break;
+            }
+        }
+        
+        // Tüm zaman aralıklarına veri ekle
+        function addDataToAllTimeRanges(sensorType, newData) {
+            addDataToTimeRange(sensorType, 'minute', newData);
+            addDataToTimeRange(sensorType, 'hour', newData);
+            addDataToTimeRange(sensorType, '4hour', newData);
+            addDataToTimeRange(sensorType, 'day', newData);
+        }
+        
+        // Gerçek zamanlı sensör verilerini işle
+        function processRealtimeSensorData() {
+            // Accelerometer verilerini işle
+            addDataToAllTimeRanges('accelerometer', currentValues.accelerometer);
+            
+            // Gyroscope verilerini işle
+            addDataToAllTimeRanges('gyroscope', currentValues.gyroscope);
+            
+            // Orientation verilerini işle
+            addDataToAllTimeRanges('orientation', currentValues.orientation);
+            
+            // Barometrik basınç verilerini işle
+            addDataToAllTimeRanges('pressure', currentValues.pressure);
+            
+            // Hız verilerini işle
+            addDataToAllTimeRanges('speed', currentValues.speed);
+            
+            // Konum verilerini işle
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                              now.getMinutes().toString().padStart(2, '0') + ':' + 
+                              now.getSeconds().toString().padStart(2, '0');
+                              
+            sensorData.location.timestamps.push(timeString);
+            sensorData.location.latitude.push(currentValues.location.latitude);
+            sensorData.location.longitude.push(currentValues.location.longitude);
+            
+            // Konum verisi limiti
+            if (sensorData.location.timestamps.length > 1000) {
+                sensorData.location.timestamps.shift();
+                sensorData.location.latitude.shift();
+                sensorData.location.longitude.shift();
             }
             
-            // Her veri dizisi için yeni değerleri ekle
-            for (let i = 0; i < dataArrays.length; i++) {
-                dataArrays[i].push(newValues[i]);
-                if (dataArrays[i].length > MAX_DATA_POINTS) {
-                    dataArrays[i].shift();
+            // Grafikleri güncelle
+            updateAllCharts();
+            
+            // Hız göstergesini güncelle
+            speedGauge.set(currentValues.speed);
+        }
+        
+        // Sensör değerlerini güncelle
+        function updateSensorValues() {
+            // Accelerometer değerlerini güncelle
+            accelerometerValues.textContent = `X: ${currentValues.accelerometer.x.toFixed(2)} m/s², Y: ${currentValues.accelerometer.y.toFixed(2)} m/s², Z: ${currentValues.accelerometer.z.toFixed(2)} m/s²`;
+            
+            // Gyroscope değerlerini güncelle
+            gyroscopeValues.textContent = `X: ${currentValues.gyroscope.x.toFixed(2)} rad/s, Y: ${currentValues.gyroscope.y.toFixed(2)} rad/s, Z: ${currentValues.gyroscope.z.toFixed(2)} rad/s`;
+            
+            // Orientation değerlerini güncelle
+            orientationValues.textContent = `Alfa: ${currentValues.orientation.alpha.toFixed(2)}°, Beta: ${currentValues.orientation.beta.toFixed(2)}°, Gama: ${currentValues.orientation.gamma.toFixed(2)}°`;
+            
+            // Barometrik basınç değerini güncelle
+            pressureValue.textContent = `Basınç: ${currentValues.pressure.toFixed(2)} hPa`;
+            
+            // Hız değerini güncelle
+            speedValue.textContent = `Hız: ${currentValues.speed.toFixed(2)} km/s`;
+            
+            // Konum değerlerini güncelle
+            locationValues.textContent = `Enlem: ${currentValues.location.latitude.toFixed(6)}, Boylam: ${currentValues.location.longitude.toFixed(6)}`;
+        }
+        
+        // Veri toplama işlemini başlat
+        function startDataCollection() {
+            processRealtimeSensorData();
+            updateSensorValues();
+            startUpdateTimer();
+        }
+        
+        // Veri toplama işlemini durdur
+        function stopDataCollection() {
+            stopUpdateTimer();
+        }
+        
+        // Güncelleme sayacını başlat
+        function startUpdateTimer() {
+            updateTimerContainer.style.display = 'inline-block';
+            updateTimer = updateInterval;
+            updateTimerElement.textContent = updateTimer;
+            
+            updateTimerId = setInterval(() => {
+                updateTimer--;
+                updateTimerElement.textContent = updateTimer;
+                
+                if (updateTimer <= 0) {
+                    updateTimer = updateInterval;
+                    updateTimerElement.textContent = updateTimer;
+                    
+                    // Sensör değerlerini ve grafikleri güncelle
+                    processRealtimeSensorData();
+                    updateSensorValues();
                 }
+            }, 1000);
+        }
+        
+        // Güncelleme sayacını durdur
+        function stopUpdateTimer() {
+            clearInterval(updateTimerId);
+            updateTimerContainer.style.display = 'none';
+        }
+        
+        // CSV dışa aktarma fonksiyonu
+        function exportToCSV(sensorType) {
+            let csvContent = 'data:text/csv;charset=utf-8,';
+            let header = '';
+            let rows = [];
+            
+            switch (sensorType) {
+                case 'accelerometer':
+                    header = 'Zaman,X (m/s²),Y (m/s²),Z (m/s²)';
+                    
+                    const accData = sensorData.accelerometer[activeTimeRanges.accelerometer];
+                    for (let i = 0; i < accData.timestamps.length; i++) {
+                        rows.push(`${accData.timestamps[i]},${accData.x[i]},${accData.y[i]},${accData.z[i]}`);
+                    }
+                    break;
+                    
+                case 'gyroscope':
+                    header = 'Zaman,X (rad/s),Y (rad/s),Z (rad/s)';
+                    
+                    const gyroData = sensorData.gyroscope[activeTimeRanges.gyroscope];
+                    for (let i = 0; i < gyroData.timestamps.length; i++) {
+                        rows.push(`${gyroData.timestamps[i]},${gyroData.x[i]},${gyroData.y[i]},${gyroData.z[i]}`);
+                    }
+                    break;
+                    
+                case 'orientation':
+                    header = 'Zaman,Alfa (°),Beta (°),Gama (°)';
+                    
+                    const orientData = sensorData.orientation[activeTimeRanges.orientation];
+                    for (let i = 0; i < orientData.timestamps.length; i++) {
+                        rows.push(`${orientData.timestamps[i]},${orientData.alpha[i]},${orientData.beta[i]},${orientData.gamma[i]}`);
+                    }
+                    break;
+                    
+                case 'pressure':
+                    header = 'Zaman,Basınç (hPa)';
+                    
+                    const pressureData = sensorData.pressure[activeTimeRanges.pressure];
+                    for (let i = 0; i < pressureData.timestamps.length; i++) {
+                        rows.push(`${pressureData.timestamps[i]},${pressureData.value[i]}`);
+                    }
+                    break;
+                    
+                case 'speed':
+                    header = 'Zaman,Hız (km/s)';
+                    
+                    const speedData = sensorData.speed[activeTimeRanges.speed];
+                    for (let i = 0; i < speedData.timestamps.length; i++) {
+                        rows.push(`${speedData.timestamps[i]},${speedData.value[i]}`);
+                    }
+                    break;
+                    
+                case 'location':
+                    header = 'Zaman,Enlem,Boylam';
+                    
+                    for (let i = 0; i < sensorData.location.timestamps.length; i++) {
+                        rows.push(`${sensorData.location.timestamps[i]},${sensorData.location.latitude[i]},${sensorData.location.longitude[i]}`);
+                    }
+                    break;
             }
             
-            // Grafiği güncelle
-            chart.update();
+            csvContent += header + '\n' + rows.join('\n');
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `${sensorType}_verileri.csv`);
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
         }
         
         // Sensörleri başlat
@@ -477,12 +1143,11 @@
                 if ('Accelerometer' in window) {
                     accelerometer = new Accelerometer({ frequency: 60 });
                     accelerometer.addEventListener('reading', () => {
-                        accelerometerValues.textContent = `X: ${accelerometer.x.toFixed(2)} m/s², Y: ${accelerometer.y.toFixed(2)} m/s², Z: ${accelerometer.z.toFixed(2)} m/s²`;
-                        addDataPoint(accelerometerChart, [accXData, accYData, accZData], [
-                            accelerometer.x, 
-                            accelerometer.y, 
-                            accelerometer.z
-                        ]);
+                        currentValues.accelerometer = {
+                            x: accelerometer.x,
+                            y: accelerometer.y,
+                            z: accelerometer.z
+                        };
                     });
                     accelerometer.start();
                     accelerometerStatus.textContent = 'Aktif';
@@ -501,12 +1166,11 @@
                 if ('Gyroscope' in window) {
                     gyroscope = new Gyroscope({ frequency: 60 });
                     gyroscope.addEventListener('reading', () => {
-                        gyroscopeValues.textContent = `X: ${gyroscope.x.toFixed(2)} rad/s, Y: ${gyroscope.y.toFixed(2)} rad/s, Z: ${gyroscope.z.toFixed(2)} rad/s`;
-                        addDataPoint(gyroscopeChart, [gyroXData, gyroYData, gyroZData], [
-                            gyroscope.x, 
-                            gyroscope.y, 
-                            gyroscope.z
-                        ]);
+                        currentValues.gyroscope = {
+                            x: gyroscope.x,
+                            y: gyroscope.y,
+                            z: gyroscope.z
+                        };
                     });
                     gyroscope.start();
                     gyroscopeStatus.textContent = 'Aktif';
@@ -520,19 +1184,49 @@
                 gyroscopeStatus.className = 'sensor-status status-unavailable';
             }
             
+            // Barometrik basınç sensörü
+            try {
+                if ('Pressure' in window) {
+                    barometer = new Pressure({ frequency: 60 });
+                    barometer.addEventListener('reading', () => {
+                        currentValues.pressure = barometer.pressure;
+                    });
+                    barometer.start();
+                    pressureStatus.textContent = 'Aktif';
+                    pressureStatus.className = 'sensor-status status-available';
+                } else {
+                    pressureStatus.textContent = 'Desteklenmiyor';
+                    pressureStatus.className = 'sensor-status status-unavailable';
+                    
+                    // Desteklenmiyorsa simüle et
+                    currentValues.pressure = 1013.25; // Deniz seviyesinde ortalama basınç
+                    
+                    // Rasgele değişimler ekle
+                    setInterval(() => {
+                        currentValues.pressure += (Math.random() - 0.5) * 0.2;
+                    }, 1000);
+                }
+            } catch (error) {
+                pressureStatus.textContent = 'Hata: ' + error.message;
+                pressureStatus.className = 'sensor-status status-unavailable';
+                
+                // Hata durumunda simüle et
+                currentValues.pressure = 1013.25;
+                
+                // Rasgele değişimler ekle
+                setInterval(() => {
+                    currentValues.pressure += (Math.random() - 0.5) * 0.2;
+                }, 1000);
+            }
+            
             // Device Orientation
             if (window.DeviceOrientationEvent) {
                 window.addEventListener('deviceorientation', (event) => {
-                    const alpha = event.alpha ? event.alpha.toFixed(2) : 0;
-                    const beta = event.beta ? event.beta.toFixed(2) : 0;
-                    const gamma = event.gamma ? event.gamma.toFixed(2) : 0;
-                    
-                    orientationValues.textContent = `Alfa: ${alpha}°, Beta: ${beta}°, Gama: ${gamma}°`;
-                    addDataPoint(orientationChart, [alphaData, betaData, gammaData], [
-                        event.alpha || 0, 
-                        event.beta || 0, 
-                        event.gamma || 0
-                    ]);
+                    currentValues.orientation = {
+                        alpha: event.alpha || 0,
+                        beta: event.beta || 0,
+                        gamma: event.gamma || 0
+                    };
                 });
                 orientationStatus.textContent = 'Aktif';
                 orientationStatus.className = 'sensor-status status-available';
@@ -541,37 +1235,55 @@
                 orientationStatus.className = 'sensor-status status-unavailable';
             }
             
-            // Ambient Light Sensor
-            try {
-                if ('AmbientLightSensor' in window) {
-                    ambientLightSensor = new AmbientLightSensor();
-                    ambientLightSensor.addEventListener('reading', () => {
-                        lightValues.textContent = `Işık seviyesi: ${ambientLightSensor.illuminance.toFixed(2)} lux`;
-                        addDataPoint(lightChart, [lightData], [ambientLightSensor.illuminance]);
-                    });
-                    ambientLightSensor.start();
-                    lightStatus.textContent = 'Aktif';
-                    lightStatus.className = 'sensor-status status-available';
-                } else {
-                    lightStatus.textContent = 'Desteklenmiyor';
-                    lightStatus.className = 'sensor-status status-unavailable';
-                }
-            } catch (error) {
-                lightStatus.textContent = 'Hata: ' + error.message;
-                lightStatus.className = 'sensor-status status-unavailable';
-            }
-            
-            // Geolocation
+            // Geolocation ve Hız
             if (navigator.geolocation) {
+                let lastPosition = null;
+                
                 locationWatchId = navigator.geolocation.watchPosition(
                     (position) => {
-                        locationValues.textContent = `Enlem: ${position.coords.latitude.toFixed(6)}, Boylam: ${position.coords.longitude.toFixed(6)}`;
+                        currentValues.location = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                        
+                        // Hız bilgisi
+                        if (position.coords.speed !== null) {
+                            // GPS'den gelen hızı km/s'ye çevir (m/s -> km/s)
+                            currentValues.speed = position.coords.speed * 3.6;
+                        } else if (lastPosition) {
+                            // Hız bilgisi yoksa iki konum arasındaki mesafeden hesapla
+                            const distance = calculateDistance(
+                                lastPosition.coords.latitude,
+                                lastPosition.coords.longitude,
+                                position.coords.latitude,
+                                position.coords.longitude
+                            );
+                            
+                            const timeDiff = (position.timestamp - lastPosition.timestamp) / 1000; // saniye cinsinden
+                            const calculatedSpeed = (distance / timeDiff) * 3.6; // km/s olarak
+                            
+                            currentValues.speed = calculatedSpeed;
+                        } else {
+                            currentValues.speed = 0;
+                        }
+                        
+                        lastPosition = position;
+                        
                         locationStatus.textContent = 'Aktif';
                         locationStatus.className = 'sensor-status status-available';
+                        speedStatus.textContent = 'Aktif';
+                        speedStatus.className = 'sensor-status status-available';
                     },
                     (error) => {
                         locationStatus.textContent = 'Hata: ' + error.message;
                         locationStatus.className = 'sensor-status status-unavailable';
+                        speedStatus.textContent = 'Hata: GPS kullanılamıyor';
+                        speedStatus.className = 'sensor-status status-unavailable';
+                        
+                        // Hata durumunda simüle et
+                        setInterval(() => {
+                            currentValues.speed = Math.random() * 60; // 0-60 km/s arasında rasgele değer
+                        }, 2000);
                     },
                     {
                         enableHighAccuracy: true,
@@ -582,7 +1294,17 @@
             } else {
                 locationStatus.textContent = 'Desteklenmiyor';
                 locationStatus.className = 'sensor-status status-unavailable';
+                speedStatus.textContent = 'Desteklenmiyor';
+                speedStatus.className = 'sensor-status status-unavailable';
+                
+                // Desteklenmiyorsa hızı simüle et
+                setInterval(() => {
+                    currentValues.speed = Math.random() * 60; // 0-60 km/s arasında rasgele değer
+                }, 2000);
             }
+            
+            // Veri toplama işlemini başlat
+            startDataCollection();
         }
         
         // Sensörleri durdur
@@ -605,11 +1327,11 @@
                 gyroscopeStatus.className = 'sensor-status status-waiting';
             }
             
-            // Ambient Light Sensor
-            if (ambientLightSensor) {
-                ambientLightSensor.stop();
-                lightStatus.textContent = 'Durduruldu';
-                lightStatus.className = 'sensor-status status-waiting';
+            // Barometrik basınç sensörü
+            if (barometer) {
+                barometer.stop();
+                pressureStatus.textContent = 'Durduruldu';
+                pressureStatus.className = 'sensor-status status-waiting';
             }
             
             // Geolocation
@@ -618,12 +1340,33 @@
                 locationWatchId = null;
                 locationStatus.textContent = 'Durduruldu';
                 locationStatus.className = 'sensor-status status-waiting';
+                speedStatus.textContent = 'Durduruldu';
+                speedStatus.className = 'sensor-status status-waiting';
             }
             
             // Orientation olayını durdur
             window.removeEventListener('deviceorientation', () => {});
             orientationStatus.textContent = 'Durduruldu';
             orientationStatus.className = 'sensor-status status-waiting';
+            
+            // Veri toplama işlemini durdur
+            stopDataCollection();
+        }
+        
+        // İki nokta arasındaki mesafeyi hesaplama (Haversine formülü)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Dünya'nın yarıçapı (metre cinsinden)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+            
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                     Math.cos(φ1) * Math.cos(φ2) *
+                     Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            return R * c; // metre cinsinden mesafe
         }
         
         // İzinleri kontrol et ve iste
