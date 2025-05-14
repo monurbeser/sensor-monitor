@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telefon Sensör Monitörü</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 0;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .sensor-info {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 15px;
+        }
+        
+        .sensor-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sensor-status {
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .status-available {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .status-unavailable {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .status-waiting {
+            background-color: #f39c12;
+            color: white;
+        }
+        
+        .sensor-value {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .sensor-description {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 15px;
+        }
+        
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .permission-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 10px;
+            font-size: 12px;
+            color: #95a5a6;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Telefon Sensör Monitörü</h1>
+        </header>
+        
+        <div class="permission-warning" id="permissionWarning">
+            <p><strong>Önemli:</strong> Bu uygulama telefonunuzdaki sensörlere erişmek için izin gerektirir. "Başlat" düğmesine tıklayarak izin vermeyi onaylayın.</p>
+        </div>
+        
+        <div class="button-container">
+            <button id="startButton">Başlat</button>
+            <button id="stopButton" disabled>Durdur</button>
+        </div>
+        
+        <!-- Accelerometer (İvmeölçer) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>İvmeölçer (Accelerometer)</div>
+                <div class="sensor-status status-waiting" id="accelerometerStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Telefonun x, y ve z eksenlerindeki hareketini ölçer</div>
+            <div class="sensor-value" id="accelerometerValues">X: 0 m/s², Y: 0 m/s², Z: 0 m/s²</div>
+            <div class="chart-container">
+                <canvas id="accelerometerChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Gyroscope (Jiroskop) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Jiroskop (Gyroscope)</div>
+                <div class="sensor-status status-waiting" id="gyroscopeStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Telefonun dönüş hızını eksenler bazında ölçer</div>
+            <div class="sensor-value" id="gyroscopeValues">X: 0 rad/s, Y: 0 rad/s, Z: 0 rad/s</div>
+            <div class="chart-container">
+                <canvas id="gyroscopeChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Orientation (Yönelim) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Yönelim (Orientation)</div>
+                <div class="sensor-status status-waiting" id="orientationStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Telefonun alfa, beta ve gama açılarındaki konumunu gösterir</div>
+            <div class="sensor-value" id="orientationValues">Alfa: 0°, Beta: 0°, Gama: 0°</div>
+            <div class="chart-container">
+                <canvas id="orientationChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Proximity (Yakınlık) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Işık Sensörü</div>
+                <div class="sensor-status status-waiting" id="lightStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Ortam ışık seviyesini ölçer (Desteklenen tarayıcılarda)</div>
+            <div class="sensor-value" id="lightValues">Işık seviyesi: 0 lux</div>
+            <div class="chart-container">
+                <canvas id="lightChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Location (Konum) -->
+        <div class="sensor-info">
+            <div class="sensor-title">
+                <div>Konum (GPS)</div>
+                <div class="sensor-status status-waiting" id="locationStatus">Bekliyor</div>
+            </div>
+            <div class="sensor-description">Telefonun coğrafi konumunu gösterir</div>
+            <div class="sensor-value" id="locationValues">Enlem: 0, Boylam: 0</div>
+        </div>
+        
+        <footer>
+            <p>Not: Tüm sensörler tüm tarayıcılarda veya cihazlarda desteklenmeyebilir. Chrome veya Firefox'un güncel sürümleri önerilir.</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM elementleri
+        const permissionWarning = document.getElementById('permissionWarning');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        
+        // Sensör durumları
+        const accelerometerStatus = document.getElementById('accelerometerStatus');
+        const gyroscopeStatus = document.getElementById('gyroscopeStatus');
+        const orientationStatus = document.getElementById('orientationStatus');
+        const lightStatus = document.getElementById('lightStatus');
+        const locationStatus = document.getElementById('locationStatus');
+        
+        // Sensör değerleri
+        const accelerometerValues = document.getElementById('accelerometerValues');
+        const gyroscopeValues = document.getElementById('gyroscopeValues');
+        const orientationValues = document.getElementById('orientationValues');
+        const lightValues = document.getElementById('lightValues');
+        const locationValues = document.getElementById('locationValues');
+        
+        // Grafikler için gerekli değişkenler
+        let accelerometerChart;
+        let gyroscopeChart;
+        let orientationChart;
+        let lightChart;
+        
+        // Sensör nesneleri
+        let accelerometer = null;
+        let gyroscope = null;
+        let ambientLightSensor = null;
+        let locationWatchId = null;
+        
+        // Veri noktalarının sayısı
+        const MAX_DATA_POINTS = 50;
+        
+        // Zaman etiketleri ve veri dizileri
+        const timeLabels = Array(MAX_DATA_POINTS).fill('');
+        
+        // Accelerometer veri dizileri
+        const accXData = Array(MAX_DATA_POINTS).fill(0);
+        const accYData = Array(MAX_DATA_POINTS).fill(0);
+        const accZData = Array(MAX_DATA_POINTS).fill(0);
+        
+        // Gyroscope veri dizileri
+        const gyroXData = Array(MAX_DATA_POINTS).fill(0);
+        const gyroYData = Array(MAX_DATA_POINTS).fill(0);
+        const gyroZData = Array(MAX_DATA_POINTS).fill(0);
+        
+        // Orientation veri dizileri
+        const alphaData = Array(MAX_DATA_POINTS).fill(0);
+        const betaData = Array(MAX_DATA_POINTS).fill(0);
+        const gammaData = Array(MAX_DATA_POINTS).fill(0);
+        
+        // Light veri dizisi
+        const lightData = Array(MAX_DATA_POINTS).fill(0);
+        
+        // Grafikleri başlat
+        function initCharts() {
+            // Accelerometer grafiği
+            const accCtx = document.getElementById('accelerometerChart').getContext('2d');
+            accelerometerChart = new Chart(accCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'X',
+                            data: accXData,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Y',
+                            data: accYData,
+                            borderColor: 'rgb(54, 162, 235)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Z',
+                            data: accZData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+            
+            // Gyroscope grafiği
+            const gyroCtx = document.getElementById('gyroscopeChart').getContext('2d');
+            gyroscopeChart = new Chart(gyroCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'X',
+                            data: gyroXData,
+                            borderColor: 'rgb(255, 159, 64)',
+                            backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Y',
+                            data: gyroYData,
+                            borderColor: 'rgb(153, 102, 255)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Z',
+                            data: gyroZData,
+                            borderColor: 'rgb(255, 205, 86)',
+                            backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+            
+            // Orientation grafiği
+            const orientCtx = document.getElementById('orientationChart').getContext('2d');
+            orientationChart = new Chart(orientCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Alfa',
+                            data: alphaData,
+                            borderColor: 'rgb(201, 203, 207)',
+                            backgroundColor: 'rgba(201, 203, 207, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Beta',
+                            data: betaData,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Gama',
+                            data: gammaData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+            
+            // Light grafiği
+            const lightCtx = document.getElementById('lightChart').getContext('2d');
+            lightChart = new Chart(lightCtx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: 'Işık',
+                            data: lightData,
+                            borderColor: 'rgb(255, 205, 86)',
+                            backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                }
+            });
+        }
+        
+        // Veri noktası ekle ve gerçek zamanlı grafiği güncelle
+        function addDataPoint(chart, dataArrays, newValues) {
+            // Yeni zaman etiketi ekle
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                           now.getMinutes().toString().padStart(2, '0') + ':' + 
+                           now.getSeconds().toString().padStart(2, '0');
+            
+            timeLabels.push(timeString);
+            if (timeLabels.length > MAX_DATA_POINTS) {
+                timeLabels.shift();
+            }
+            
+            // Her veri dizisi için yeni değerleri ekle
+            for (let i = 0; i < dataArrays.length; i++) {
+                dataArrays[i].push(newValues[i]);
+                if (dataArrays[i].length > MAX_DATA_POINTS) {
+                    dataArrays[i].shift();
+                }
+            }
+            
+            // Grafiği güncelle
+            chart.update();
+        }
+        
+        // Sensörleri başlat
+        function startSensors() {
+            // Başlatma düğmesini devre dışı bırak
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            permissionWarning.style.display = 'none';
+            
+            // Accelerometer
+            try {
+                if ('Accelerometer' in window) {
+                    accelerometer = new Accelerometer({ frequency: 60 });
+                    accelerometer.addEventListener('reading', () => {
+                        accelerometerValues.textContent = `X: ${accelerometer.x.toFixed(2)} m/s², Y: ${accelerometer.y.toFixed(2)} m/s², Z: ${accelerometer.z.toFixed(2)} m/s²`;
+                        addDataPoint(accelerometerChart, [accXData, accYData, accZData], [
+                            accelerometer.x, 
+                            accelerometer.y, 
+                            accelerometer.z
+                        ]);
+                    });
+                    accelerometer.start();
+                    accelerometerStatus.textContent = 'Aktif';
+                    accelerometerStatus.className = 'sensor-status status-available';
+                } else {
+                    accelerometerStatus.textContent = 'Desteklenmiyor';
+                    accelerometerStatus.className = 'sensor-status status-unavailable';
+                }
+            } catch (error) {
+                accelerometerStatus.textContent = 'Hata: ' + error.message;
+                accelerometerStatus.className = 'sensor-status status-unavailable';
+            }
+            
+            // Gyroscope
+            try {
+                if ('Gyroscope' in window) {
+                    gyroscope = new Gyroscope({ frequency: 60 });
+                    gyroscope.addEventListener('reading', () => {
+                        gyroscopeValues.textContent = `X: ${gyroscope.x.toFixed(2)} rad/s, Y: ${gyroscope.y.toFixed(2)} rad/s, Z: ${gyroscope.z.toFixed(2)} rad/s`;
+                        addDataPoint(gyroscopeChart, [gyroXData, gyroYData, gyroZData], [
+                            gyroscope.x, 
+                            gyroscope.y, 
+                            gyroscope.z
+                        ]);
+                    });
+                    gyroscope.start();
+                    gyroscopeStatus.textContent = 'Aktif';
+                    gyroscopeStatus.className = 'sensor-status status-available';
+                } else {
+                    gyroscopeStatus.textContent = 'Desteklenmiyor';
+                    gyroscopeStatus.className = 'sensor-status status-unavailable';
+                }
+            } catch (error) {
+                gyroscopeStatus.textContent = 'Hata: ' + error.message;
+                gyroscopeStatus.className = 'sensor-status status-unavailable';
+            }
+            
+            // Device Orientation
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (event) => {
+                    const alpha = event.alpha ? event.alpha.toFixed(2) : 0;
+                    const beta = event.beta ? event.beta.toFixed(2) : 0;
+                    const gamma = event.gamma ? event.gamma.toFixed(2) : 0;
+                    
+                    orientationValues.textContent = `Alfa: ${alpha}°, Beta: ${beta}°, Gama: ${gamma}°`;
+                    addDataPoint(orientationChart, [alphaData, betaData, gammaData], [
+                        event.alpha || 0, 
+                        event.beta || 0, 
+                        event.gamma || 0
+                    ]);
+                });
+                orientationStatus.textContent = 'Aktif';
+                orientationStatus.className = 'sensor-status status-available';
+            } else {
+                orientationStatus.textContent = 'Desteklenmiyor';
+                orientationStatus.className = 'sensor-status status-unavailable';
+            }
+            
+            // Ambient Light Sensor
+            try {
+                if ('AmbientLightSensor' in window) {
+                    ambientLightSensor = new AmbientLightSensor();
+                    ambientLightSensor.addEventListener('reading', () => {
+                        lightValues.textContent = `Işık seviyesi: ${ambientLightSensor.illuminance.toFixed(2)} lux`;
+                        addDataPoint(lightChart, [lightData], [ambientLightSensor.illuminance]);
+                    });
+                    ambientLightSensor.start();
+                    lightStatus.textContent = 'Aktif';
+                    lightStatus.className = 'sensor-status status-available';
+                } else {
+                    lightStatus.textContent = 'Desteklenmiyor';
+                    lightStatus.className = 'sensor-status status-unavailable';
+                }
+            } catch (error) {
+                lightStatus.textContent = 'Hata: ' + error.message;
+                lightStatus.className = 'sensor-status status-unavailable';
+            }
+            
+            // Geolocation
+            if (navigator.geolocation) {
+                locationWatchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        locationValues.textContent = `Enlem: ${position.coords.latitude.toFixed(6)}, Boylam: ${position.coords.longitude.toFixed(6)}`;
+                        locationStatus.textContent = 'Aktif';
+                        locationStatus.className = 'sensor-status status-available';
+                    },
+                    (error) => {
+                        locationStatus.textContent = 'Hata: ' + error.message;
+                        locationStatus.className = 'sensor-status status-unavailable';
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            } else {
+                locationStatus.textContent = 'Desteklenmiyor';
+                locationStatus.className = 'sensor-status status-unavailable';
+            }
+        }
+        
+        // Sensörleri durdur
+        function stopSensors() {
+            // Durdurma düğmesini devre dışı bırak
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            
+            // Accelerometer
+            if (accelerometer) {
+                accelerometer.stop();
+                accelerometerStatus.textContent = 'Durduruldu';
+                accelerometerStatus.className = 'sensor-status status-waiting';
+            }
+            
+            // Gyroscope
+            if (gyroscope) {
+                gyroscope.stop();
+                gyroscopeStatus.textContent = 'Durduruldu';
+                gyroscopeStatus.className = 'sensor-status status-waiting';
+            }
+            
+            // Ambient Light Sensor
+            if (ambientLightSensor) {
+                ambientLightSensor.stop();
+                lightStatus.textContent = 'Durduruldu';
+                lightStatus.className = 'sensor-status status-waiting';
+            }
+            
+            // Geolocation
+            if (locationWatchId !== null) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+                locationStatus.textContent = 'Durduruldu';
+                locationStatus.className = 'sensor-status status-waiting';
+            }
+            
+            // Orientation olayını durdur
+            window.removeEventListener('deviceorientation', () => {});
+            orientationStatus.textContent = 'Durduruldu';
+            orientationStatus.className = 'sensor-status status-waiting';
+        }
+        
+        // İzinleri kontrol et ve iste
+        async function requestPermissions() {
+            // Sensör izinleri için
+            if (navigator.permissions) {
+                // Accelerometer izni
+                try {
+                    const accelerometerResult = await navigator.permissions.query({ name: 'accelerometer' });
+                    console.log('Accelerometer izni:', accelerometerResult.state);
+                } catch (error) {
+                    console.error('Accelerometer izni sorgulanamadı:', error);
+                }
+                
+                // Gyroscope izni
+                try {
+                    const gyroscopeResult = await navigator.permissions.query({ name: 'gyroscope' });
+                    console.log('Gyroscope izni:', gyroscopeResult.state);
+                } catch (error) {
+                    console.error('Gyroscope izni sorgulanamadı:', error);
+                }
+                
+                // Magnetometer izni
+                try {
+                    const magnetometerResult = await navigator.permissions.query({ name: 'magnetometer' });
+                    console.log('Magnetometer izni:', magnetometerResult.state);
+                } catch (error) {
+                    console.error('Magnetometer izni sorgulanamadı:', error);
+                }
+            }
+            
+            // iOS için özel yönelim izni
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    console.log('iOS Yönelim izni:', permissionState);
+                    if (permissionState === 'granted') {
+                        // İzin verildi, sensörleri başlat
+                        startSensors();
+                    }
+                } catch (error) {
+                    console.error('iOS yönelim izni istenemedi:', error);
+                    // İzin desteklenmiyor veya reddedildi, mevcut izinlerle devam et
+                    startSensors();
+                }
+            } else {
+                // iOS dışındaki cihazlar için doğrudan başlat
+                startSensors();
+            }
+        }
+        
+        // Sayfa yüklendiğinde grafikleri başlat
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            
+            // Başlat düğmesine tıklama
+            startButton.addEventListener('click', () => {
+                requestPermissions();
+            });
+            
+            // Durdur düğmesine tıklama
+            stopButton.addEventListener('click', () => {
+                stopSensors();
+            });
+        });
+    </script>
+</body>
+</html>
