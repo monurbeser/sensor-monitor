@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sensor Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -48,16 +54,16 @@
     <h1>📱 Telefon Sensör Paneli</h1>
     <div class="dashboard">
         <div class="card">
-            <h2>Barometre (hPa)</h2>
-            <canvas id="barometerGauge"></canvas>
-        </div>
-        <div class="card">
-            <h2>Altimetre (m)</h2>
-            <canvas id="altimeterGauge"></canvas>
-        </div>
-        <div class="card">
             <h2>İvmeölçer</h2>
             <canvas id="accelerometerChart"></canvas>
+        </div>
+        <div class="card">
+            <h2>Gyroscope</h2>
+            <canvas id="gyroscopeChart"></canvas>
+        </div>
+        <div class="card">
+            <h2>Light Sensor</h2>
+            <p id="lightValue">Bekleniyor...</p>
         </div>
         <div class="card">
             <h2>Konum</h2>
@@ -66,40 +72,13 @@
     </div>
 
     <script>
-        const seaLevelPressure = 1013.25;
-
-        // Barometre ve Altimetre Gauge
-        const createGauge = (id, label, max) => new Chart(
-            document.getElementById(id), {
-                type: 'doughnut',
-                data: {
-                    labels: [label],
-                    datasets: [{
-                        label: label,
-                        data: [0, max],
-                        backgroundColor: ['#38bdf8', '#1e293b'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    cutout: '80%',
-                    plugins: {
-                        tooltip: {enabled: false},
-                        legend: {display: false},
-                        title: {
-                            display: true,
-                            text: label,
-                            color: '#fff',
-                            padding: {top: 10, bottom: 10},
-                        },
-                    }
-                }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js');
             });
+        }
 
-        const barometerGauge = createGauge('barometerGauge', 'Basınç', 1100);
-        const altimeterGauge = createGauge('altimeterGauge', 'Yükseklik', 3000);
-
-        // İvmeölçer Grafiği
+        // İvmeölçer
         const accelChart = new Chart(document.getElementById('accelerometerChart'), {
             type: 'line',
             data: {
@@ -132,7 +111,6 @@
             accelChart.update();
         };
 
-        // Sensör verileri okuma
         if (window.DeviceMotionEvent) {
             window.addEventListener("devicemotion", e => {
                 const { x, y, z } = e.accelerationIncludingGravity;
@@ -140,27 +118,58 @@
             });
         }
 
-        if ('AbsoluteOrientationSensor' in window) {
-            console.log('Orientation sensor available');
+        // Gyroscope
+        const gyroChart = new Chart(document.getElementById('gyroscopeChart'), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Alpha', data: [], borderColor: '#facc15', fill: false },
+                    { label: 'Beta', data: [], borderColor: '#818cf8', fill: false },
+                    { label: 'Gamma', data: [], borderColor: '#fb7185', fill: false },
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { display: false },
+                    y: { beginAtZero: false }
+                }
+            }
+        });
+
+        let gTime = 0;
+        const updateGyroscope = (alpha, beta, gamma) => {
+            if (gyroChart.data.labels.length > 50) {
+                gyroChart.data.labels.shift();
+                gyroChart.data.datasets.forEach(ds => ds.data.shift());
+            }
+            gyroChart.data.labels.push(gTime++);
+            gyroChart.data.datasets[0].data.push(alpha);
+            gyroChart.data.datasets[1].data.push(beta);
+            gyroChart.data.datasets[2].data.push(gamma);
+            gyroChart.update();
+        };
+
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener("deviceorientation", e => {
+                updateGyroscope(e.alpha || 0, e.beta || 0, e.gamma || 0);
+            });
         }
 
-        // Basınç için Barometer API (deneysel)
-        if ('Barometer' in window) {
-            const barometer = new Barometer({ frequency: 1 });
-            barometer.addEventListener('reading', () => {
-                const pressure = barometer.pressure;
-                barometerGauge.data.datasets[0].data[0] = pressure;
-                barometerGauge.data.datasets[0].data[1] = 1100 - pressure;
-                barometerGauge.update();
-
-                const altitude = Math.round((1 - Math.pow(pressure / seaLevelPressure, 0.190284)) * 145366.45 * 0.3048);
-                altimeterGauge.data.datasets[0].data[0] = altitude;
-                altimeterGauge.data.datasets[0].data[1] = 3000 - altitude;
-                altimeterGauge.update();
-            });
-            barometer.start();
+        // Light Sensor
+        if ('AmbientLightSensor' in window) {
+            try {
+                const sensor = new AmbientLightSensor();
+                sensor.addEventListener('reading', () => {
+                    document.getElementById("lightValue").innerText = `Işık: ${sensor.illuminance} lux`;
+                });
+                sensor.start();
+            } catch (err) {
+                document.getElementById("lightValue").innerText = "Işık sensörü çalıştırılamadı.";
+            }
         } else {
-            alert("Barometre sensörü desteklenmiyor.");
+            document.getElementById("lightValue").innerText = "Işık sensörü desteklenmiyor.";
         }
 
         // Konum
